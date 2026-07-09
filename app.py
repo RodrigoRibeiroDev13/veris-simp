@@ -35,7 +35,7 @@ name = credentials_config["usernames"].get(username, {}).get("name", "") if user
 if authentication_status == False:
     st.error("Usuário ou senha incorretos do Veris SIMP.")
 elif authentication_status == None:
-    st.info("Insira suas credenciais privadas para destravar o painel de auditoria.")
+    st.info("Insira suas credenciais para acesso ao sistema.")
 elif authentication_status:
     
     with st.sidebar:

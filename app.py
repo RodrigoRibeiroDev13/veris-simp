@@ -9,14 +9,14 @@ st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
-# --- CONFIGURAÇÃO DE AUTENTICAÇÃO ---
-# Carrega os dados diretamente dos secrets
+# --- CONFIGURAÇÃO DE AUTENTICAÇÃO (CORRIGIDA) ---
 credentials_config = st.secrets["credentials"].to_dict()
 
+# Ajuste nos parâmetros da versão atual da biblioteca
 authenticator = stauth.Authenticate(
-    credentials_config["usernames"],
-    "veris_simp_cookie",
-    st.secrets["auth"]["cookie_key"],
+    credentials=credentials_config["usernames"],
+    cookie_name="veris_simp_cookie",
+    key=st.secrets["auth"]["cookie_key"],
     cookie_expiry_days=int(st.secrets["auth"]["expiry_days"])
 )
 

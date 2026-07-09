@@ -9,15 +9,17 @@ st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
-# --- CONFIGURAÇÃO DE AUTENTICAÇÃO (CORRIGIDA) ---
-credentials_config = st.secrets["credentials"].to_dict()
+# --- CONFIGURAÇÃO DE AUTENTICAÇÃO (CORRIGIDA E ROBUSTA) ---
+# Carrega todos os segredos para um dicionário para evitar KeyError
+config = st.secrets.to_dict()
 
-# Ajuste nos parâmetros da versão atual da biblioteca
+# A versão mais recente da biblioteca exige passar o dicionário de credentials
+# que contenha a chave 'usernames' conforme a estrutura do seu secrets.toml
 authenticator = stauth.Authenticate(
-    credentials=credentials_config["usernames"],
+    credentials=config['credentials'],
     cookie_name="veris_simp_cookie",
-    key=st.secrets["auth"]["cookie_key"],
-    cookie_expiry_days=int(st.secrets["auth"]["expiry_days"])
+    key=config['auth']['cookie_key'],
+    cookie_expiry_days=int(config['auth']['expiry_days'])
 )
 
 # Renderização da tela de login
@@ -26,7 +28,8 @@ authenticator.login(location="main")
 # Captura de dados de estado
 authentication_status = st.session_state.get("authentication_status")
 username = st.session_state.get("username")
-name = credentials_config["usernames"].get(username, {}).get("name", "") if username else ""
+# Busca o nome com base no username logado
+name = config['credentials']['usernames'].get(username, {}).get("name", "") if username else ""
 
 if authentication_status == False:
     st.error("Usuário ou senha incorretos do Veris SIMP.")

@@ -9,12 +9,10 @@ st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
-# --- CONFIGURAÇÃO DE AUTENTICAÇÃO (CORRIGIDA E ROBUSTA) ---
-# Carrega todos os segredos para um dicionário para evitar KeyError
+# --- CONFIGURAÇÃO DE AUTENTICAÇÃO (SEM E-MAIL) ---
 config = st.secrets.to_dict()
 
-# A versão mais recente da biblioteca exige passar o dicionário de credentials
-# que contenha a chave 'usernames' conforme a estrutura do seu secrets.toml
+# Inicializa o autenticador
 authenticator = stauth.Authenticate(
     credentials=config['credentials'],
     cookie_name="veris_simp_cookie",
@@ -28,7 +26,6 @@ authenticator.login(location="main")
 # Captura de dados de estado
 authentication_status = st.session_state.get("authentication_status")
 username = st.session_state.get("username")
-# Busca o nome com base no username logado
 name = config['credentials']['usernames'].get(username, {}).get("name", "") if username else ""
 
 if authentication_status == False:

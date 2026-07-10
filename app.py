@@ -5,13 +5,15 @@ from database import AgregadoRepository
 from calculator import CalculadoraAgregados
 import datetime
 
+# Configuração da página sempre no topo
 st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
-# --- CONFIGURAÇÃO DE AUTENTICAÇÃO (ROBUSTA) ---
+# --- CONFIGURAÇÃO DE AUTENTICAÇÃO ---
 config = st.secrets.to_dict()
-# Estrutura obrigatória para a versão atual da biblioteca
+# Estrutura obrigatória para a versão atual da biblioteca:
+# A biblioteca espera um dicionário com a chave 'usernames'
 credentials_dict = {"usernames": config["credentials"]["usernames"]}
 
 authenticator = stauth.Authenticate(
@@ -21,13 +23,15 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=int(config["auth"]["expiry_days"])
 )
 
-# Renderiza o formulário de login
+# Renderiza o login (nativa da biblioteca)
 authenticator.login(location="main")
 
-# --- LÓGICA DE CONTROLE DE ACESSO COM FEEDBACK ---
-if st.session_state.get("authentication_status") == True:
+# --- LÓGICA DE CONTROLE DE ACESSO ---
+# A interface só é renderizada SE o status for True
+if st.session_state.get("authentication_status"):
     username = st.session_state.get("username")
-    name = credentials_dict["usernames"].get(username, {}).get("name", "Usuário")
+    user_info = credentials_dict["usernames"].get(username, {})
+    name = user_info.get("name", "Usuário")
 
     with st.sidebar:
         st.markdown("### 🛡️ Credencial Corporativa")
@@ -102,7 +106,8 @@ if st.session_state.get("authentication_status") == True:
                 pdf_output = CalculadoraAgregados.gerar_pdf_laudo(h)
                 st.download_button("📥 Baixar Laudo PDF", data=pdf_output, file_name=f"laudo_{h['placa']}.pdf")
 
+# Feedback de erro (exibido apenas se o login falhar)
 elif st.session_state.get("authentication_status") == False:
     st.error("Usuário ou senha incorretos.")
 elif st.session_state.get("authentication_status") == None:
-    st.info("Insira suas credenciais para acessar o Veris SIMP.")
+    st.info("Insira suas credenciais.")

@@ -9,13 +9,9 @@ st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
-# --- CONFIGURAÇÃO DE AUTENTICAÇÃO ASSERTIVA ---
+# --- INICIALIZAÇÃO DE AUTENTICAÇÃO SIMPLIFICADA ---
 config = st.secrets.to_dict()
-
-# Ajuste crítico: Formata o dicionário exatamente como a lib exige
-credentials_dict = {
-    "usernames": config["credentials"]["usernames"]
-}
+credentials_dict = {"usernames": config["credentials"]["usernames"]}
 
 authenticator = stauth.Authenticate(
     credentials=credentials_dict,
@@ -24,13 +20,14 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=int(config["auth"]["expiry_days"])
 )
 
-# Login
+# Renderiza o login (ele cuida da interface sozinho)
 authenticator.login(location="main")
 
-# Lógica de acesso
+# Se o usuário estiver autenticado, o restante do app carrega
 if st.session_state.get("authentication_status"):
     username = st.session_state.get("username")
-    name = credentials_dict["usernames"].get(username, {}).get("name", "")
+    user_info = credentials_dict["usernames"].get(username, {})
+    name = user_info.get("name", "Usuário")
 
     with st.sidebar:
         st.markdown("### 🛡️ Credencial Corporativa")

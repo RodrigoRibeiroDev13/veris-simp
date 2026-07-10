@@ -5,15 +5,13 @@ from database import AgregadoRepository
 from calculator import CalculadoraAgregados
 import datetime
 
-# Configuração da página sempre no topo
 st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
 # --- CONFIGURAÇÃO DE AUTENTICAÇÃO ---
 config = st.secrets.to_dict()
-# Estrutura obrigatória para a versão atual da biblioteca:
-# A biblioteca espera um dicionário com a chave 'usernames'
+# A biblioteca atualizada exige que passemos o dicionário de usuários dentro de 'usernames'
 credentials_dict = {"usernames": config["credentials"]["usernames"]}
 
 authenticator = stauth.Authenticate(
@@ -23,11 +21,11 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=int(config["auth"]["expiry_days"])
 )
 
-# Renderiza o login (nativa da biblioteca)
+# Inicializa o login
 authenticator.login(location="main")
 
-# --- LÓGICA DE CONTROLE DE ACESSO ---
-# A interface só é renderizada SE o status for True
+# --- LÓGICA DE ACESSO ---
+# A interface completa só é renderizada SE o status for True (logado)
 if st.session_state.get("authentication_status"):
     username = st.session_state.get("username")
     user_info = credentials_dict["usernames"].get(username, {})
@@ -40,6 +38,7 @@ if st.session_state.get("authentication_status"):
         st.divider()
         authenticator.logout("Desconectar do Veris SIMP", "sidebar")
    
+    # Título do sistema
     st.markdown("""<div style="text-align: center; padding: 10px; border-bottom: 2px solid #0284C7;">
             <h1 style="color: #0284C7; margin-bottom: 0px; font-family: 'Montserrat', sans-serif; font-weight: 800; letter-spacing: 2px;">
                 🎯 VERIS <span style="color: #64748B; font-weight: 300;">SIMP</span>
@@ -110,4 +109,4 @@ if st.session_state.get("authentication_status"):
 elif st.session_state.get("authentication_status") == False:
     st.error("Usuário ou senha incorretos.")
 elif st.session_state.get("authentication_status") == None:
-    st.info("Insira suas credenciais.")
+    st.info("Insira suas credenciais para acessar o Veris SIMP.")

@@ -9,8 +9,9 @@ st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
-# --- INICIALIZAÇÃO DE AUTENTICAÇÃO SIMPLIFICADA ---
+# --- CONFIGURAÇÃO DE AUTENTICAÇÃO (ROBUSTA) ---
 config = st.secrets.to_dict()
+# Estrutura obrigatória para a versão atual da biblioteca
 credentials_dict = {"usernames": config["credentials"]["usernames"]}
 
 authenticator = stauth.Authenticate(
@@ -20,14 +21,13 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=int(config["auth"]["expiry_days"])
 )
 
-# Renderiza o login (ele cuida da interface sozinho)
+# Renderiza o formulário de login
 authenticator.login(location="main")
 
-# Se o usuário estiver autenticado, o restante do app carrega
-if st.session_state.get("authentication_status"):
+# --- LÓGICA DE CONTROLE DE ACESSO COM FEEDBACK ---
+if st.session_state.get("authentication_status") == True:
     username = st.session_state.get("username")
-    user_info = credentials_dict["usernames"].get(username, {})
-    name = user_info.get("name", "Usuário")
+    name = credentials_dict["usernames"].get(username, {}).get("name", "Usuário")
 
     with st.sidebar:
         st.markdown("### 🛡️ Credencial Corporativa")
@@ -101,3 +101,8 @@ if st.session_state.get("authentication_status"):
                 st.write(f"Analista: @{h['analista']}")
                 pdf_output = CalculadoraAgregados.gerar_pdf_laudo(h)
                 st.download_button("📥 Baixar Laudo PDF", data=pdf_output, file_name=f"laudo_{h['placa']}.pdf")
+
+elif st.session_state.get("authentication_status") == False:
+    st.error("Usuário ou senha incorretos.")
+elif st.session_state.get("authentication_status") == None:
+    st.info("Insira suas credenciais para acessar o Veris SIMP.")

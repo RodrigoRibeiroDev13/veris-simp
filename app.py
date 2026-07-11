@@ -1,113 +1,66 @@
-# app.py
 import streamlit as st
 import streamlit_authenticator as stauth
 from database import AgregadoRepository
-from calculator import CalculadoraAgregados
-import datetime
 
-# Configuração da página
 st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
-# --- CONFIGURAÇÃO DE AUTENTICAÇÃO ---
+# --- AUTENTICAÇÃO ---
 config = st.secrets.to_dict()
-# Estrutura obrigatória: a lib espera um dicionário com a chave 'usernames'
 credentials_dict = {"usernames": config["credentials"]["usernames"]}
 
 authenticator = stauth.Authenticate(
-    credentials=credentials_dict,
-    cookie_name="veris_simp_cookie",
-    key=config["auth"]["cookie_key"],
-    cookie_expiry_days=int(config["auth"]["expiry_days"])
+    credentials_dict, "veris_simp_cookie", config["auth"]["cookie_key"], int(config["auth"]["expiry_days"])
 )
-
-# Inicializa o formulário de login nativo
 authenticator.login(location="main")
 
-# --- LÓGICA DE CONTROLE DE ACESSO ---
-# A interface SÓ é renderizada dentro deste IF após o login confirmado
+# --- INTERFACE PROTEGIDA ---
 if st.session_state.get("authentication_status"):
-    username = st.session_state.get("username")
-    user_info = credentials_dict["usernames"].get(username, {})
-    name = user_info.get("name", "Usuário")
-
-    # Barra lateral
-    with st.sidebar:
-        st.write("### 🛡️ Credencial Corporativa")
-        st.write(f"👤 **Analista:** {name}")
-        st.write(f"🔑 **ID:** @{username}")
-        st.divider()
-        authenticator.logout("Desconectar do Veris SIMP", "sidebar")
-   
-    # Título Nativo (Orgânico e sem erro de HTML)
-    st.title("🎯 VERIS SIMP")
-    st.subheader("Sistema Inteligente de Modelos e Precificação")
-    st.divider()
-   
-    tab_precificador, tab_catalogo, tab_historico = st.tabs([
-        "🧮 Interface de Precificação", "➕ Catálogo de Modelos", "📊 Histórico & PDF"
-    ])
+    
+    st.title("🎯 VERIS SIMP - Gestão de Agregados")
+    
+    tab_precificador, tab_catalogo = st.tabs(["🧮 Precificar / Consultar", "➕ Cadastrar Novo Modelo"])
 
     with tab_precificador:
-        st.header("Avaliação de Mercado Automatizada")
-        c1, c2 = st.columns(2)
-        with c1:
-            marca = st.selectbox("Marca do Implemento", ["RANDON", "NOMA", "FACCHINI", "SÃO PEDRO", "OUTRA"])
-            crlv_busca = st.text_input("Descrição Resumida do CRLV").upper().strip()
-            codigo_fipe = st.text_input("Código FIPE", placeholder="Ex: 054001-3")
+        st.header("Buscar no Banco de Dados")
         
-        modelo_db = repo.buscar_modelo(crlv_busca)
+        # Carrega modelos do MongoDB
+        todos_modelos = repo.listar_todos_modelos()
+        lista_crlv = [m['crlv'] for m in todos_modelos]
         
-        with c2:
-            ano = st.number_input("Ano do Modelo", min_value=1990, max_value=2027, value=2022)
-            estado = st.selectbox("Estado de Conservação", ["Excelente", "Bom", "Regular", "Ruim"])
-            valor_base = modelo_db["valor_estimado_base"] if modelo_db else 80000.0
-            st.info(f"Mapeamento: {modelo_db['nome_completo'] if modelo_db else 'Não mapeado'}")
+        busca = st.selectbox("Selecione ou digite o modelo (CRLV):", [""] + lista_crlv)
+        
+        if busca:
+            modelo = next((m for m in todos_modelos if m['crlv'] == busca), None)
+            if modelo:
+                st.success(f"Modelo: {modelo['nome_completo']} | Valor Referência: R$ {modelo['valor_base']:,.2f}")
+        else:
+            st.info("Digite um modelo acima para ver a precificação.")
 
-        precificacao = CalculadoraAgregados.obter_valor_sugerido(valor_base, ano, estado, codigo_fipe)
         st.divider()
-        
-        col_m1, col_m2 = st.columns(2)
-        with col_m1:
-            st.metric(label="Preço Sugerido Automático", value=f"R$ {precificacao['valor_final']:,.2f}")
-        with col_m2:
-            valor_fixado = st.number_input("Valor Final Arbitrado (R$)", value=float(precificacao['valor_final']))
-        
-        placa = st.text_input("Placa do Agregado", max_chars=7).upper()
-        justificativa = st.text_area("Justificativa Técnica")
-       
-        if st.button("Gravar Avaliação Definitiva", type="primary"):
-            dados_laudo = {
-                "placa": placa, "marca": marca, "nome_completo": modelo_db.get("nome_completo", "N/A") if modelo_db else "N/A",
-                "ano_fabricacao": ano, "estado_conservacao": estado, "valor_final_fixado": valor_fixado,
-                "justificativa": justificativa, "analista": username, "data_analise": datetime.datetime.now()
-            }
-            repo.salvar_analise(dados_laudo)
-            st.success("Avaliação registrada com sucesso!")
+        st.markdown("""
+        ### 🔍 Onde encontrar preços de referência?
+        Caso o modelo não esteja no sistema, sugerimos consultar:
+        * **[Shoptrans](https://www.shoptrans.com.br)**
+        * **[Caminhões e Carretas](https://www.caminhoesecarretas.com.br)**
+        * **[Mercado Livre (Implementos)](https://veiculos.mercadolivre.com.br/caminhoes/implementos/)**
+        """)
 
     with tab_catalogo:
-        st.header("Injeção de Novos Modelos")
-        with st.form("form_novo_modelo"):
-            m_marca = st.selectbox("Marca Associada", ["RANDON", "NOMA", "FACCHINI", "SÃO PEDRO", "OUTRA"])
-            m_crlv = st.text_input("Texto do CRLV").upper()
-            m_nome = st.text_input("Nome Comercial Completo")
-            m_valor = st.number_input("Valor de Referência (R$)", value=100000.0)
-            if st.form_submit_button("Registrar Modelo"):
-                repo.salvar_modelo_catalogo(m_marca, m_crlv, m_nome, m_valor)
-                st.success("Modelo adicionado!")
+        st.header("Cadastrar Novo Modelo")
+        with st.form("form_cadastro"):
+            crlv = st.text_input("Descrição Resumida no CRLV").upper()
+            marca = st.selectbox("Marca", ["RANDON", "NOMA", "FACCHINI", "SÃO PEDRO", "GUERRA", "LIBRELATO", "OUTRA"])
+            nome = st.text_input("Nome Completo do Modelo")
+            valor = st.number_input("Valor Médio de Referência (R$)", min_value=0.0)
+            
+            if st.form_submit_button("Salvar no Catálogo"):
+                if crlv and valor > 0:
+                    repo.salvar_modelo_catalogo(marca, crlv, nome, valor)
+                    st.success("Modelo cadastrado com sucesso! Recarregue a página para ver na busca.")
+                else:
+                    st.error("Preencha o CRLV e o Valor.")
 
-    with tab_historico:
-        st.header("Histórico de Laudos")
-        historico = repo.listar_laudos()
-        for h in historico:
-            with st.expander(f"Placa: {h['placa']} - R$ {h['valor_final_fixado']:,.2f}"):
-                st.write(f"Analista: @{h['analista']}")
-                pdf_output = CalculadoraAgregados.gerar_pdf_laudo(h)
-                st.download_button("📥 Baixar Laudo PDF", data=pdf_output, file_name=f"laudo_{h['placa']}.pdf")
-
-# Feedback de erro e estado inicial
 elif st.session_state.get("authentication_status") == False:
-    st.error("Usuário ou senha incorretos.")
-elif st.session_state.get("authentication_status") == None:
-    st.info("Por favor, insira suas credenciais para acessar o sistema.")
+    st.error("Usuário ou senha inválidos.")

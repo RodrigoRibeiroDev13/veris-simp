@@ -3,7 +3,6 @@ from database import AgregadoRepository
 from fpdf import FPDF
 from datetime import datetime
 
-# --- Configuração ---
 repo = AgregadoRepository()
 
 def check_password():
@@ -24,11 +23,22 @@ def check_password():
 if not check_password():
     st.stop()
 
-st.title("📊 VERIS SIMP - Auditoria de Ativos")
+# --- Logout ---
+st.sidebar.write("---")
+if st.sidebar.button("Logout"):
+    st.session_state.password_correct = False
+    st.rerun()
 
-# --- Formulario ---
-modelos = list(repo.col_modelos.find())
-opcoes = {m['modelo_nome']: m for m in modelos}
+st.title("📊 VERIS SIMP - Agregados")
+
+# --- Correção do Erro ---
+modelos_raw = list(repo.col_modelos.find())
+# Usamos .get para evitar o erro caso o campo não exista no banco
+opcoes = {m.get('modelo_nome', 'Modelo Sem Nome'): m for m in modelos_raw}
+
+if not opcoes:
+    st.error("Nenhum modelo encontrado no banco! Use a aba administrativa abaixo para cadastrar.")
+    opcoes = {"Nenhum": {"marca": "N/A", "valor_base_novo": 0}}
 
 with st.form("laudo_form"):
     sel_modelo = st.selectbox("Selecione o Modelo", list(opcoes.keys()))
@@ -37,18 +47,18 @@ with st.form("laudo_form"):
     ano = st.number_input("Ano do Equipamento", min_value=1986, max_value=datetime.now().year, value=datetime.now().year)
     v_vendedor = st.number_input("Valor Informado pelo Vendedor (R$)", 0.0)
     obs = st.text_area("Observações Técnicas")
-    btn = st.form_submit_button("Gerar Laudo PDF (Dark Mode)")
+    btn = st.form_submit_button("Gerar Laudo PDF")
 
 if btn:
-    resultados = repo.calcular_cenarios(ano, dados['valor_base_novo'])
+    resultados = repo.calcular_cenarios(ano, dados.get('valor_base_novo', 0))
     st.table(list(resultados.items()))
     
     # --- Geração PDF Dark Mode ---
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_fill_color(50, 50, 50) # Cinza Escuro
+    pdf.set_fill_color(50, 50, 50) 
     pdf.rect(0, 0, 210, 297, 'F')
-    pdf.set_text_color(255, 255, 255) # Branco
+    pdf.set_text_color(255, 255, 255)
     
     pdf.set_font("Arial", 'B', 16)
     pdf.cell(0, 10, "LAUDO TECNICO - VERIS SIMP", ln=True, align='C')
@@ -71,6 +81,8 @@ with st.expander("⚙️ Cadastrar Novo Modelo"):
         n_marca = st.text_input("Marca")
         n_nome = st.text_input("Nome do Modelo")
         n_valor = st.number_input("Valor Base Novo")
-        if st.form_submit_button("Salvar"):
+        if st.form_submit_button("Salvar no Banco"):
             repo.col_modelos.insert_one({"marca": n_marca, "modelo_nome": n_nome, "valor_base_novo": n_valor})
+            st.success("Cadastrado! Recarregue a página.")
             st.rerun()
+

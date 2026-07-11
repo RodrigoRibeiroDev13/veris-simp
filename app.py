@@ -5,14 +5,14 @@ from database import AgregadoRepository
 from calculator import CalculadoraAgregados
 import datetime
 
-# Configuração da página sempre no topo
+# Configuração da página
 st.set_page_config(page_title="Veris SIMP", page_icon="🎯", layout="wide")
 
 repo = AgregadoRepository()
 
 # --- CONFIGURAÇÃO DE AUTENTICAÇÃO ---
 config = st.secrets.to_dict()
-# A biblioteca atualizada exige que passemos o dicionário de usuários dentro da chave 'usernames'
+# Estrutura obrigatória: a lib espera um dicionário com a chave 'usernames'
 credentials_dict = {"usernames": config["credentials"]["usernames"]}
 
 authenticator = stauth.Authenticate(
@@ -22,58 +22,58 @@ authenticator = stauth.Authenticate(
     cookie_expiry_days=int(config["auth"]["expiry_days"])
 )
 
-# Renderiza o login (nativa da biblioteca)
+# Inicializa o formulário de login nativo
 authenticator.login(location="main")
 
 # --- LÓGICA DE CONTROLE DE ACESSO ---
-# A interface só é renderizada SE o status for True
+# A interface SÓ é renderizada dentro deste IF após o login confirmado
 if st.session_state.get("authentication_status"):
     username = st.session_state.get("username")
     user_info = credentials_dict["usernames"].get(username, {})
     name = user_info.get("name", "Usuário")
 
+    # Barra lateral
     with st.sidebar:
-        st.markdown("### 🛡️ Credencial Corporativa")
+        st.write("### 🛡️ Credencial Corporativa")
         st.write(f"👤 **Analista:** {name}")
         st.write(f"🔑 **ID:** @{username}")
         st.divider()
         authenticator.logout("Desconectar do Veris SIMP", "sidebar")
    
-    # Título renderizado APENAS dentro do IF, o que elimina o erro da linha 42
-    st.markdown("""<div style="text-align: center; padding: 10px; border-bottom: 2px solid #0284C7;">
-            <h1 style="color: #0284C7; margin-bottom: 0px; font-family: 'Montserrat', sans-serif; font-weight: 800; letter-spacing: 2px;">
-                🎯 VERIS <span style="color: #64748B; font-weight: 300;">SIMP</span>
-            </h1>
-            <p style="color: #94A3B8; font-size: 12px; margin-top: 5px; letter-spacing: 1px;">
-                SISTEMA INTELIGENTE DE MODELOS E PRECIFICAÇÃO
-            </p>
-        </div>""", unsafe_html=True)
+    # Título Nativo (Orgânico e sem erro de HTML)
+    st.title("🎯 VERIS SIMP")
+    st.subheader("Sistema Inteligente de Modelos e Precificação")
+    st.divider()
    
     tab_precificador, tab_catalogo, tab_historico = st.tabs([
         "🧮 Interface de Precificação", "➕ Catálogo de Modelos", "📊 Histórico & PDF"
     ])
 
     with tab_precificador:
-        st.subheader("Avaliação de Mercado Automatizada")
+        st.header("Avaliação de Mercado Automatizada")
         c1, c2 = st.columns(2)
         with c1:
             marca = st.selectbox("Marca do Implemento", ["RANDON", "NOMA", "FACCHINI", "SÃO PEDRO", "OUTRA"])
-            crlv_busca = st.text_input("Descrição Resumida do CRLV (Busca no Banco)").upper().strip()
+            crlv_busca = st.text_input("Descrição Resumida do CRLV").upper().strip()
             codigo_fipe = st.text_input("Código FIPE", placeholder="Ex: 054001-3")
+        
         modelo_db = repo.buscar_modelo(crlv_busca)
+        
         with c2:
             ano = st.number_input("Ano do Modelo", min_value=1990, max_value=2027, value=2022)
             estado = st.selectbox("Estado de Conservação", ["Excelente", "Bom", "Regular", "Ruim"])
             valor_base = modelo_db["valor_estimado_base"] if modelo_db else 80000.0
-            st.text(f"Mapeamento Local: {modelo_db['nome_completo'] if modelo_db else 'Não mapeado'}")
+            st.info(f"Mapeamento: {modelo_db['nome_completo'] if modelo_db else 'Não mapeado'}")
 
         precificacao = CalculadoraAgregados.obter_valor_sugerido(valor_base, ano, estado, codigo_fipe)
         st.divider()
+        
         col_m1, col_m2 = st.columns(2)
         with col_m1:
-            st.metric(label="Preço Calculado Automático", value=f"R$ {precificacao['valor_final']:,.2f}")
+            st.metric(label="Preço Sugerido Automático", value=f"R$ {precificacao['valor_final']:,.2f}")
         with col_m2:
             valor_fixado = st.number_input("Valor Final Arbitrado (R$)", value=float(precificacao['valor_final']))
+        
         placa = st.text_input("Placa do Agregado", max_chars=7).upper()
         justificativa = st.text_area("Justificativa Técnica")
        
@@ -87,7 +87,7 @@ if st.session_state.get("authentication_status"):
             st.success("Avaliação registrada com sucesso!")
 
     with tab_catalogo:
-        st.subheader("Injeção de Novos Modelos")
+        st.header("Injeção de Novos Modelos")
         with st.form("form_novo_modelo"):
             m_marca = st.selectbox("Marca Associada", ["RANDON", "NOMA", "FACCHINI", "SÃO PEDRO", "OUTRA"])
             m_crlv = st.text_input("Texto do CRLV").upper()
@@ -98,7 +98,7 @@ if st.session_state.get("authentication_status"):
                 st.success("Modelo adicionado!")
 
     with tab_historico:
-        st.subheader("Histórico de Laudos")
+        st.header("Histórico de Laudos")
         historico = repo.listar_laudos()
         for h in historico:
             with st.expander(f"Placa: {h['placa']} - R$ {h['valor_final_fixado']:,.2f}"):
@@ -106,8 +106,8 @@ if st.session_state.get("authentication_status"):
                 pdf_output = CalculadoraAgregados.gerar_pdf_laudo(h)
                 st.download_button("📥 Baixar Laudo PDF", data=pdf_output, file_name=f"laudo_{h['placa']}.pdf")
 
-# Feedback de erro (exibido apenas se o login falhar)
+# Feedback de erro e estado inicial
 elif st.session_state.get("authentication_status") == False:
     st.error("Usuário ou senha incorretos.")
 elif st.session_state.get("authentication_status") == None:
-    st.info("Insira suas credenciais para acessar o Veris SIMP.")
+    st.info("Por favor, insira suas credenciais para acessar o sistema.")

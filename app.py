@@ -27,7 +27,7 @@ def check_password():
 
 if not check_password(): st.stop()
 
-# Logo acima do logout
+# Logo na barra lateral acima do logout
 try:
     st.sidebar.image("logo_veris.png", use_container_width=True)
 except: st.sidebar.warning("Logo não encontrada.")
@@ -35,6 +35,11 @@ except: st.sidebar.warning("Logo não encontrada.")
 if st.sidebar.button("Logout"):
     st.session_state.password_correct = False
     st.rerun()
+
+# --- Logo no topo da página ---
+try:
+    st.image("logo_veris.png", width=150)
+except: pass
 
 st.title("📊 VERIS SIMP - Agregados")
 
@@ -53,19 +58,17 @@ if btn:
     for nota, val in resultados.items():
         st.write(f"**Nota {nota}:** {formatar_moeda(val)}")
 
-    # PDF com espaçamento de 3 linhas (ln(30)) após a logo
+    # PDF com logo alinhada ao topo esquerdo e texto abaixo
     dados = opcoes[sel_modelo]
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_fill_color(50, 50, 50)
-    pdf.rect(0, 0, 210, 297, 'F')
     
     try:
-        pdf.image("logo_veris.png", x=80, y=20, w=50)
+        # Logo no topo esquerdo (x=10, y=10)
+        pdf.image("logo_veris.png", x=10, y=10, w=40)
     except: pass
     
-    pdf.ln(30) # Espaço de 3 linhas após a logo
-    pdf.set_text_color(255, 255, 255)
+    pdf.ln(30) # Espaço após a logo para não sobrepor
     pdf.set_font("Arial", size=12)
     
     pdf.cell(0, 10, f"Modelo: {dados.get('modelo_completo')}", ln=True)

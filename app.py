@@ -16,12 +16,17 @@ def formatar_moeda(valor):
 def check_password():
     if "password_correct" not in st.session_state:
         st.sidebar.title("🔐 Login VERIS SIMP")
-        user = st.sidebar.text_input("Usuário", key="username")
-        pwd = st.sidebar.text_input("Senha", type="password", key="password")
+        user_input = st.sidebar.text_input("Usuário", key="username")
+        pwd_input = st.sidebar.text_input("Senha", type="password", key="password")
+        
         if st.sidebar.button("Entrar"):
-            if user == st.secrets["admin_user"] and pwd == st.secrets["admin_pass"]:
+            # Validação contra dicionário de usuários no secrets
+            usuarios_autorizados = st.secrets.get("usuarios", {})
+            if user_input in usuarios_autorizados and usuarios_autorizados[user_input] == pwd_input:
                 st.session_state["password_correct"] = True
                 st.rerun()
+            else:
+                st.sidebar.error("Usuário ou senha inválidos")
         return False
     return st.session_state["password_correct"]
 
@@ -62,15 +67,15 @@ if btn:
     dados = opcoes[sel_modelo]
     pdf = FPDF()
     pdf.add_page()
-    
+   
     try:
         # Logo no topo esquerdo (x=10, y=10)
         pdf.image("logo_veris.png", x=10, y=10, w=40)
     except: pass
-    
+   
     pdf.ln(30) # Espaço após a logo para não sobrepor
     pdf.set_font("Arial", size=12)
-    
+   
     pdf.cell(0, 10, f"Modelo: {dados.get('modelo_completo')}", ln=True)
     pdf.cell(0, 10, f"Modelo CRLV: {dados.get('modelo_crlv')}", ln=True)
     pdf.cell(0, 10, f"Ano: {dados.get('ano_modelo')}", ln=True)
@@ -90,10 +95,10 @@ with st.expander("⚙️ Cadastrar Novo Modelo"):
         categoria = st.text_input("Categoria")
         ano_mod = st.number_input("Ano Modelo", min_value=1900, max_value=2050)
         ano_fab = st.number_input("Ano Fabricação", min_value=1900, max_value=2050)
-        
+       
         if st.form_submit_button("Salvar no Banco"):
             repo.col_modelos.insert_one({
-                "marca": marca, "modelo_crlv": modelo_crlv, 
+                "marca": marca, "modelo_crlv": modelo_crlv,
                 "modelo_completo": modelo_comp, "categoria": categoria,
                 "ano_modelo": ano_mod, "ano_fabricacao": ano_fab
             })

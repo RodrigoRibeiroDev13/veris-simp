@@ -1,7 +1,6 @@
 import streamlit as st
 from database import AgregadoRepository
 from fpdf import FPDF
-from datetime import datetime
 from PIL import Image
 
 repo = AgregadoRepository()
@@ -9,17 +8,12 @@ repo = AgregadoRepository()
 # --- Configuração ---
 st.set_page_config(page_title="VERIS SIMP", layout="wide")
 
-# Função de formatação: R$ (133.000,00)
+fatores = {5: 1.0, 4: 0.9, 3: 0.8, 2: 0.7, 1: 0.6}
+
 def formatar_moeda(valor):
     return f"R$ ({valor:,.2f})".replace(",", "X").replace(".", ",").replace("X", ".")
 
-try:
-    logo = Image.open("logo_veris.png")
-    st.sidebar.image(logo, use_container_width=True)
-except:
-    st.sidebar.warning("Logo não encontrada (salve como logo_veris.png)")
-
-# --- Login ---
+# --- Login e Logout ---
 def check_password():
     if "password_correct" not in st.session_state:
         st.sidebar.title("🔐 Login VERIS SIMP")
@@ -29,79 +23,71 @@ def check_password():
             if user == st.secrets["admin_user"] and pwd == st.secrets["admin_pass"]:
                 st.session_state["password_correct"] = True
                 st.rerun()
-            else:
-                st.sidebar.error("Credenciais inválidas")
         return False
     return st.session_state["password_correct"]
 
-if not check_password():
-    st.stop()
+if not check_password(): st.stop()
+if st.sidebar.button("Logout"):
+    st.session_state.password_correct = False
+    st.rerun()
 
 st.title("📊 VERIS SIMP - Agregados")
 
-# --- Interface ---
-# Buscando dados do MongoDB
+# --- Interface de Laudo ---
 modelos_raw = list(repo.col_modelos.find())
-opcoes = {m.get('modelo_completo', 'Modelo Sem Nome'): m for m in modelos_raw}
+opcoes = {f"{m.get('modelo_completo')} ({m.get('ano_modelo')})": m for m in modelos_raw}
 
 with st.form("laudo_form"):
     sel_modelo = st.selectbox("Seleção de Modelo", list(opcoes.keys()))
-    dados = opcoes[sel_modelo]
-    ano = st.number_input("Ano do Equipamento", min_value=1986, value=datetime.now().year)
-    v_vendedor = st.number_input("Valor Informado pelo Vendedor (R$)", 0.0)
-    obs = st.text_area("Observações Técnicas")
-    btn = st.form_submit_button("Gerar Laudo PDF")
+    valor_vendedor = st.number_input("Valor Informado pelo Vendedor (R$)", 0.0)
+    nota_vistoria = st.selectbox("Nota da Vistoria", [5, 4, 3, 2, 1])
+    btn = st.form_submit_button("Calcular Valor")
 
 if btn:
-    # Ajuste: usamos 'valor_nota_5' que está no seu banco, ou ajuste conforme a nota desejada
-    resultados = repo.calcular_cenarios(ano, dados.get('valor_nota_5', 0))
-    st.table(list(resultados.items()))
+    valor_final = valor_vendedor * fatores[nota_vistoria]
+    st.write(f"### Valor Final: {formatar_moeda(valor_final)}")
 
-    # --- PDF ---
+    dados = opcoes[sel_modelo]
     pdf = FPDF()
     pdf.add_page()
     pdf.set_fill_color(50, 50, 50)
     pdf.rect(0, 0, 210, 297, 'F')
     
     try:
-        pdf.image("logo_veris.png", x=80, y=10, w=50)
-    except:
-        pass
+        pdf.image("logo_veris.png", x=80, y=20, w=50)
+    except: pass
     
-    pdf.ln(35) # Espaço após a logo
+    pdf.ln(50)
     pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(0, 10, "LAUDO TECNICO", ln=True, align='C')
-    pdf.cell(0, 10, "VERIS SIMP", ln=True, align='C')
-    
-    pdf.ln(10)
     pdf.set_font("Arial", size=12)
-    pdf.cell(0, 10, f"Modelo: {sel_modelo} | Ano: {ano}", ln=True)
-    pdf.cell(0, 10, f"Valor Vendedor: {formatar_moeda(v_vendedor)}", ln=True)
-    pdf.ln(5)
-    for n, v in resultados.items():
-        pdf.cell(0, 10, f"{n}: {formatar_moeda(v)}", ln=True)
-    pdf.ln(5)
-    pdf.multi_cell(0, 10, f"Observações: {obs}")
+    
+    pdf.cell(0, 10, f"Modelo: {dados.get('modelo_completo')}", ln=True)
+    pdf.cell(0, 10, f"Modelo CRLV: {dados.get('modelo_crlv')}", ln=True)
+    pdf.cell(0, 10, f"Ano: {dados.get('ano_modelo')}", ln=True)
+    pdf.cell(0, 10, f"Valor Final Calculado: {formatar_moeda(valor_final)}", ln=True)
 
     st.download_button("📥 Baixar Laudo PDF", data=pdf.output(dest='S').encode('latin-1'),
-                       file_name=f"laudo_{sel_modelo}.pdf", mime="application/pdf")
+                       file_name="laudo_veris.pdf", mime="application/pdf")
 
-# --- Administrativo ---
+# --- Administrativo com Novo Padrão ---
 with st.expander("⚙️ Cadastrar Novo Modelo"):
     with st.form("admin_novo"):
-        n_marca = st.text_input("Marca")
-        n_nome = st.text_input("Nome Completo do Modelo")
-        n_valor = st.number_input("Valor de Referência (Nota 5)")
+        marca = st.text_input("Marca")
+        modelo_crlv = st.text_input("Modelo (CRLV)")
+        modelo_comp = st.text_input("Modelo Completo")
+        categoria = st.text_input("Categoria")
+        ano_mod = st.number_input("Ano Modelo", min_value=1900, max_value=2050)
+        ano_fab = st.number_input("Ano Fabricação", min_value=1900, max_value=2050)
         
         if st.form_submit_button("Salvar no Banco"):
-            if not n_marca or not n_nome or n_valor == 0:
-                st.error("Preencha todos os campos!")
-            else:
-                repo.col_modelos.insert_one({
-                    "marca": n_marca, 
-                    "modelo_completo": n_nome, 
-                    "valor_nota_5": n_valor
-                })
-                st.success("Cadastrado! Recarregue.")
-                st.rerun()
+            # O MongoDB gera o _id automaticamente se não for especificado
+            repo.col_modelos.insert_one({
+                "marca": marca, 
+                "modelo_crlv": modelo_crlv, 
+                "modelo_completo": modelo_comp,
+                "categoria": categoria,
+                "ano_modelo": ano_mod,
+                "ano_fabricacao": ano_fab
+            })
+            st.success("Cadastrado com sucesso!")
+            st.rerun()

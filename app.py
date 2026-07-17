@@ -20,7 +20,6 @@ def check_password():
         pwd_input = st.sidebar.text_input("Senha", type="password", key="password")
         
         if st.sidebar.button("Entrar"):
-            # Validação contra dicionário de usuários no secrets (suporta múltiplos usuários)
             usuarios_autorizados = st.secrets.get("usuarios", {})
             if user_input in usuarios_autorizados and str(usuarios_autorizados[user_input]) == str(pwd_input):
                 st.session_state["password_correct"] = True
@@ -105,9 +104,14 @@ if btn:
     
     pdf.ln(5)
     
-    # Correção definitiva do download de PDF para Mobile e Desktop (evita erro de encode em bytearray)
+    # Solução do Erro: Conversão forçada e explícita para bytes compatível com Streamlit API
     pdf_out = pdf.output(dest='S')
-    pdf_bytes = pdf_out.encode('latin-1') if isinstance(pdf_out, str) else pdf_out
+    if isinstance(pdf_out, str):
+        pdf_bytes = pdf_out.encode('latin-1', errors='replace')
+    elif isinstance(pdf_out, bytearray):
+        pdf_bytes = bytes(pdf_out)
+    else:
+        pdf_bytes = pdf_out
 
     st.download_button(
         label="📥 Baixar Laudo PDF", 
@@ -127,7 +131,6 @@ with st.expander("⚙️ Cadastrar Novo Modelo"):
         ano_mod = st.number_input("Ano Modelo", min_value=1900, max_value=2050)
         ano_fab = st.number_input("Ano Fabricação", min_value=1900, max_value=2050)
         
-        # Integração completa dos campos de valor ao cadastrar diretamente pelo painel administrativo
         v_nota5 = st.number_input("Valor Nota 5 (Sugerido/100%)", 0.0)
         v_nota4 = st.number_input("Valor Nota 4 (95%)", 0.0)
         v_nota3 = st.number_input("Valor Nota 3 (90%)", 0.0)
